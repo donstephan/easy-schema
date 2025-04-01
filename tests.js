@@ -1,13 +1,12 @@
-import { Tinytest } from 'meteor/tinytest';
+import { Match } from 'meteor/check';
+import { Any, AnyOf, check, Double, EasySchema, has, ID, Integer, ObjectID, Optional } from 'meteor/jam:easy-schema';
 import { Mongo } from 'meteor/mongo';
 import { Decimal } from 'meteor/mongo-decimal';
-import { has, Integer, Double, Any, ID, ObjectID, Optional, AnyOf, check, EasySchema } from 'meteor/jam:easy-schema';
-import { shape, meta, Where, _getParams } from './lib/shape.js';
-import { isEqual } from './lib/utils/shared';
-import { check as c, Match } from 'meteor/check';
 import { Random } from 'meteor/random';
-import { DDP } from 'meteor/ddp-client';
+import { Tinytest } from 'meteor/tinytest';
 import { Tracker } from 'meteor/tracker';
+import { _getParams, meta, shape, Where } from './lib/shape.js';
+import { isEqual } from './lib/utils/shared';
 
 const { createJSONSchema } = Meteor.isServer ? require('./lib/attach/server') : {};
 
@@ -308,6 +307,80 @@ const typeSchemaShapedManual = {
     city: String
   }
 };
+
+const certificateSchema = {
+  _id: Optional(String),
+  x509Fields: {
+    commonName: String,
+  }
+}
+
+const certificateCollection = new Mongo.Collection('certificates');
+certificateCollection.attachSchema(certificateSchema);
+
+const insertCertificate = async () => {
+  return await certificateCollection.insertAsync({
+    x509Fields: {
+      commonName: 'with-insert'
+    }
+  });
+}
+
+const updateCertificate = async () => {
+  return await certificateCollection.updateAsync({
+    _id: Random.id(),
+  }, {
+    $set: {
+      x509Fields: {
+        commonName: 'with-update'
+      }
+    }
+  })
+}
+
+const upsertCertificate = async () => {
+  return await certificateCollection.upsertAsync({
+    _id: Random.id(),
+  }, {
+    $set: {
+      x509Fields: {
+        commonName: 'with-upsert'
+      }
+    }
+  })
+}
+
+Meteor.methods({ insertCertificate, updateCertificate, upsertCertificate });
+
+Tinytest.addAsync('test insert with x509Field name', async (test) => {
+  try {
+    await Meteor.callAsync("insertCertificate");
+    test.isTrue(true);
+  } catch (e) {
+    console.log(e);
+    test.isTrue(e = undefined);
+  }
+});
+
+Tinytest.addAsync('test update with x509Field name', async (test) => {
+  try {
+    await Meteor.callAsync("updateCertificate");
+    test.isTrue(true);
+  } catch (e) {
+    console.log(e);
+    test.isTrue(e = undefined);
+  }
+});
+
+Tinytest.addAsync('test upsert with x509Field name', async (test) => {
+  try {
+    await Meteor.callAsync("upsertCertificate");
+    test.isTrue(true);
+  } catch (e) {
+    console.log(e);
+    test.isTrue(e = undefined);
+  }
+});
 
 // console.log('messageSchema SHAPED');
 // console.dir(shape(messageSchema), {depth: null})
@@ -3714,7 +3787,7 @@ if (Meteor.isServer) {
       test.isTrue(error = undefined)
     }
   });
-  // 
+  //
   Tinytest.add('condition - min object', function(test) {
     try {
       check(minObjDataFail, minObjSchema)
